@@ -1,0 +1,98 @@
+import matplotlib.pyplot as plt
+import numpy as np
+import pandas as pd
+from scipy import stats
+import math
+import statistics
+import seaborn as sns
+from IPython.display import display
+import sklearn
+print(sklearn.__version__)
+
+from sklearn.feature_selection import VarianceThreshold
+from sklearn import preprocessing
+
+from sklearn.datasets import make_friedman1
+from sklearn.feature_selection import RFE
+from sklearn.svm import SVC
+
+
+#讀入資料
+
+df_train = pd.read_csv("Titanic_train.csv")
+print(df_train.info())
+
+#1.產生一個新的變數 Survived_cate ，資料型態傳換成類別型態  
+
+#2.把題目中的 Survived 用 Survived_cate 來做分析    
+
+df_train['Survived_cate']=df_train['Survived']
+df_train['Survived_cate']=df_train['Survived_cate'].astype('object')
+print(df_train.info())
+
+
+#先把遺失值刪除
+# 取出資料後，把遺失值刪除
+
+complete_data=df_train.dropna()
+
+#排除 Ｎame 當特徵，先刪除每一個人都是獨特的資料，先檢視其他變數
+complete_data=complete_data.drop(['Name','Ticket','PassengerId'], axis=1)
+display(complete_data.head(5))
+
+print(complete_data.shape)
+
+
+
+num_features = []
+for dtype, feature in zip(complete_data.dtypes, complete_data.columns):
+    if dtype == 'float64' or dtype == 'int64':
+        num_features.append(feature)
+print(f'{len(num_features)} Numeric Features : {num_features}\n')
+
+cat_features = []
+for dtype, feature in zip(complete_data.dtypes, complete_data.columns):
+    if dtype == 'object':
+        cat_features.append(feature)
+print(f'{len(cat_features)} category Features : {cat_features}\n')
+
+#定義 x,y
+
+x=complete_data[['Pclass', 'Age', 'SibSp', 'Parch', 'Fare','Sex', 'Embarked']]
+y=complete_data['Survived']
+display(x.head(5))
+display(y.head(5))
+
+#Q1
+
+#離散要轉換成數值，['Sex',  'Cabin', 'Embarked']
+#Can only use .cat accessor with a 'category' dtype
+# .cat.codes ：分類的編碼，用數字表示分類數據
+x = x.copy()
+c = x.loc[:,'Sex'].astype('category')
+d = dict(enumerate(c.cat.categories))
+print (d)
+x.loc[:,'Sex']=x.loc[:,'Sex'].astype('category').cat.codes # ok
+display(x.head(5))
+
+c = x.loc[:,'Embarked'].astype('category')
+d = dict(enumerate(c.cat.categories))
+print (d)
+x.loc[:,'Embarked']=x.loc[:,'Embarked'].astype('category').cat.codes # ok
+
+print(x.head(5))
+
+#執行 包裝法
+
+estimator = SVC(kernel="linear")
+selector = RFE(estimator, n_features_to_select=1, step=1)
+selector = selector.fit(x, y)
+## True= selected feature
+print(selector.support_)
+#Selected (i.e., estimated best) features are assigned rank 1.
+ranking=selector.ranking_
+print(ranking)
+rfe_feature = x.loc[:,selector.support_].columns.tolist()
+print(rfe_feature)
+
+#Pclass-Age-SibSp-Parch-Fare-Sex-Embarked 的依序排序為 [3 5 2 6 7 1 4]
